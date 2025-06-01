@@ -1,0 +1,17 @@
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment files
+.env
+
+# Config files
+config.yaml
+
+bin/
+
+.task/
+
+coverage.*

@@ -1,0 +1,46 @@
+version: '3'
+
+vars:
+  BINARY: './bin/mussel'
+
+
+tasks:
+  build:
+    desc: Build the binary
+    cmds:
+      - go build -o {{.BINARY}}
+    sources:
+      - go.mod
+      - go.sum
+      - '**/*.go'
+    generates:
+      - '{{.BINARY}}'
+
+  run:
+    desc: Run the application
+    cmds:
+      - task: build
+      - '{{.BINARY}} {{.CLI_ARGS}}'
+    vars:
+      CLI_ARGS: '-ecosystem pypi -package requests'
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test -v ./...
+
+  test-coverage:
+    desc: Run tests with coverage
+    cmds:
+      - go test -coverprofile=coverage.out -v ./...
+      - go tool cover -html=coverage.out -o coverage.html
+
+  lint:
+    desc: Run linters
+    cmds:
+      - golangci-lint run
+
+  format:
+    desc: Format Go code
+    cmds:
+      - golangci-lint fmt

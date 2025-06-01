@@ -1,0 +1,9 @@
+pypi:
+  pyEnvRoot: /tmp/mussel/pyenv
+  pythonVersions:
+    - "3.8"
+    - "3.9"
+    - "3.10"
+    - "3.11"
+    - "3.12"
+  venv: /tmp/mussel/venv
