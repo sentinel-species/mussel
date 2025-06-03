@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sort"
+	"strings"
 )
 
 type PypiConfig struct {
@@ -16,6 +18,35 @@ type PypiConfig struct {
 
 func (pc *PypiConfig) getPythonVersion() string {
 	return pc.PythonVersions[pc.currentVersion]
+}
+
+func (pc *PypiConfig) getFullPyenvVersion(majorMinor string) (majorMinorBugfix *string, err error) {
+	var versions []string
+
+	entries, err := os.ReadDir(fmt.Sprintf("%s/versions", pc.PathPyEnvRoot))
+	if err != nil {
+		return nil, fmt.Errorf("reading directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+
+		if strings.HasPrefix(name, majorMinor+".") {
+			versions = append(versions, name)
+		}
+	}
+
+	if len(versions) == 0 {
+		return nil, fmt.Errorf("no matching versions found for %s", majorMinor)
+	}
+
+	sort.Sort(sort.Reverse(sort.StringSlice(versions)))
+
+	return Pointer(versions[0]), nil
 }
 
 func (pc *PypiConfig) Setup() (err error) {
@@ -53,7 +84,18 @@ func (pc *PypiConfig) InstallPython() (err error) {
 }
 
 func (pc *PypiConfig) NewVenv() (err error) {
-	// TODO: Start hack week here
+	err = os.RemoveAll(pc.PathVenv)
+	if err != nil {
+		return fmt.Errorf("failed to remove old virtual environment: %w", err)
+	}
 
+	fullVersion, err := pc.getFullPyenvVersion(pc.getPythonVersion())
+	if err != nil {
+		return err
+	}
+	err = exec.Command(fmt.Sprintf("%s/versions/%s/bin/python", pc.PathPyEnvRoot, *fullVersion), "-m", "venv", pc.PathVenv).Run()
+	if err != nil {
+		return fmt.Errorf("failed to create virtual environment: %w", err)
+	}
 	return
 }
