@@ -5,3 +5,9 @@ type DependencyTree struct {
 	Version      string            `json:"version"`
 	Dependencies []*DependencyTree `json:"dependencies,omitempty"`
 }
+
+type Dependency struct {
+	Id        int     `json:"id"`
+	Package   Package `json:"package"`
+	DependsOn Package `json:"depends_on"`
+}

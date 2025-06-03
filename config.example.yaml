@@ -7,3 +7,10 @@ pypi:
     - "3.11"
     - "3.12"
   venv: /tmp/mussel/venv
+database:
+  source: jdbc:postgresql://<username>:<password>@<host>:<port>/<database>
+  max_conn: 20
+  max_conn_lifetime: 1h
+  conn_timeout: 5s
+  read_timeout: 15s
+  write_timeout: 30s
