@@ -11,7 +11,7 @@ import (
 	"mussel/internal/types"
 )
 
-func Scrape(pkg string) (tree *types.DependencyTree, err error) {
+func Scrape(pkg string) (trees []*types.DependencyTree, err error) {
 	err = config.Config.Pypi.Setup()
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup environment: %w", err)
@@ -33,17 +33,16 @@ func Scrape(pkg string) (tree *types.DependencyTree, err error) {
 	}
 
 	for _, version := range strings.Split(*packageVersions, "\n") {
-		tree, err = CheckDependencies(pkg, version)
+		tree, err := CheckDependencies(pkg, version)
 		if err != nil {
 			_, err = fmt.Fprintf(os.Stderr, "failed to process version %s: %v\n", version, err)
 			if err != nil {
 				return nil, err
 			}
-			continue
 		}
-		return tree, nil
+		trees = append(trees, tree)
 	}
-	return nil, fmt.Errorf("no valid versions found for package %s", pkg)
+	return
 }
 
 func getPackageVersions(pkg string) (packageVersions *string, err error) {
