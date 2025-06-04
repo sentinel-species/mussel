@@ -1,6 +1,7 @@
 package types
 
 type Ecosystem struct {
-	Id   string `json:"id"`
-	Name string `json:"name"`
+	InternalId int    `json:"internal_id"`
+	Id         string `json:"id"`
+	Name       string `json:"name"`
 }

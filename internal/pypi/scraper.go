@@ -27,7 +27,7 @@ func NewScraper(dependencyStore *database.DependencyStore, packageStore *databas
 	}
 }
 
-func (s *Scraper) Scrape(pkg string) (err error) {
+func (s *Scraper) Scrape(pkg string, ecosystem types.Ecosystem) (err error) {
 	err = config.Config.Pypi.Setup()
 	if err != nil {
 		return fmt.Errorf("failed to setup environment: %w", err)
@@ -49,7 +49,7 @@ func (s *Scraper) Scrape(pkg string) (err error) {
 	}
 
 	for _, version := range strings.Split(*packageVersions, "\n") {
-		err := s.dependencyTree(pkg, version)
+		err := s.topLevel(pkg, version, ecosystem)
 		if err != nil {
 			_, err = fmt.Fprintf(os.Stderr, "failed to process version %s: %v\n", version, err)
 			if err != nil {
@@ -86,7 +86,7 @@ func (s *Scraper) getPackageVersions(pkg string) (packageVersions *string, err e
 	return
 }
 
-func (s *Scraper) dependencyTree(pkg string, version string) (err error) {
+func (s *Scraper) topLevel(pkg string, version string, ecosystem types.Ecosystem) (err error) {
 	fmt.Printf("Processing %s version %s\n", pkg, version)
 
 	cmd := exec.Command(config.Config.Pypi.GetPythonPath(), "-m", "pip", "install", fmt.Sprintf("%s==%s", pkg, version))
@@ -95,7 +95,7 @@ func (s *Scraper) dependencyTree(pkg string, version string) (err error) {
 		return fmt.Errorf("failed to install package %s version %s: %w (output: %s)", pkg, version, err, string(output))
 	}
 
-	_, err = s.checkDependencies(pkg)
+	_, _, err = s.packageInfo(pkg, ecosystem)
 	if err != nil {
 		return err
 	}
@@ -103,14 +103,14 @@ func (s *Scraper) dependencyTree(pkg string, version string) (err error) {
 	return nil
 }
 
-func (s *Scraper) checkDependencies(pkg string) (dependencies []*types.Package, err error) {
+func (s *Scraper) packageInfo(pkg string, ecosystem types.Ecosystem) (p *types.Package, deps []*types.Dependency, err error) {
 	cmd := exec.Command(config.Config.Pypi.GetPythonPath(), "-m", "pip", "show", pkg)
 	showOutput, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get package info for %s: %w (output: %s)", pkg, err, string(showOutput))
+		return nil, nil, fmt.Errorf("failed to get package info for %s: %w (output: %s)", pkg, err, string(showOutput))
 	}
 
-	p := types.Package{Name: pkg}
+	p = types.Pointer(types.Package{Name: strings.ToLower(pkg), Ecosystem: ecosystem})
 
 	for _, line := range strings.Split(string(showOutput), "\n") {
 		if strings.Contains(line, "Version:") {
@@ -124,23 +124,31 @@ func (s *Scraper) checkDependencies(pkg string) (dependencies []*types.Package, 
 			requires := strings.Split(requiresText, ", ")
 
 			for _, requirement := range requires {
-				dependsOn, err := s.checkDependencies(requirement)
+				r, _, err := s.packageInfo(requirement, ecosystem)
 				if err != nil {
-					return nil, fmt.Errorf("error processing dependency %s: %w", requirement, err)
+					return nil, nil, fmt.Errorf("error processing dependency %s: %w", requirement, err)
 				}
 
-				for _, d := range dependsOn {
-					_, err = s.dependencyStore.Upsert(context.Background(), types.Dependency{
-						Package:   p,
-						DependsOn: types.Package{Name: d.Name, Version: d.Version},
-					})
-					if err != nil {
-						return nil, err
-					}
-				}
+				deps = append(deps, types.Pointer(types.Dependency{
+					Package:   *p,
+					DependsOn: *r,
+				}))
 			}
 		}
 	}
 
-	return dependencies, nil
+	_, err = s.packageStore.Upsert(context.Background(), p)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error upserting package %s: %w", p.Name, err)
+	}
+	for _, d := range deps {
+		_, err = s.dependencyStore.Upsert(context.Background(), types.Pointer(types.Dependency{
+			Package:   *p,
+			DependsOn: d.DependsOn}))
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return
 }
