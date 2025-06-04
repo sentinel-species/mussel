@@ -1,11 +1,9 @@
 package types
 
 type Package struct {
-	Name     string    `json:"name"`
-	Versions []Version `json:"versions"`
-}
-
-type Version struct {
-	Version      string          `json:"version"`
-	Dependencies *DependencyTree `json:"dependencies,omitempty"`
+	InternalId int       `json:"internal_id"`
+	Id         string    `json:"id"`
+	Name       string    `json:"name"`
+	Version    string    `json:"version"`
+	Ecosystem  Ecosystem `json:"ecosystem"`
 }

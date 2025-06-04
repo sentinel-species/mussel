@@ -1,5 +1,6 @@
 package types
 
 type Config struct {
-	Pypi PypiConfig `json:"pypi"`
+	Database DatabaseConfig `json:"database"`
+	Pypi     PypiConfig     `json:"pypi"`
 }
